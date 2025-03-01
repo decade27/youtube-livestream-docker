@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+     youtube-stream:
+       build: .
+       container_name: youtube_stream
+       volumes:
+         - ./audio:/app/audio
+         - ./video:/app/video
+       environment:
+         - YOUTUBE_KEY=YOUR_YOUTUBE_STREAM_KEY  # Set your stream key as an environment variable
+       command: python /app/stream.py
+       restart: unless-stopped
