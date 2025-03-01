@@ -3,11 +3,14 @@ import os
 import random
 
    # YouTube variables
-YOUTUBE_URL = "rtmp://a.rtmp.youtube.com/live2"
+YOUTUBE_URL = os.getenv('YOUTUBE_URL')
 YOUTUBE_KEY = os.getenv('YOUTUBE_KEY')  # Expect the key to be provided as an environment variable
 
 if not YOUTUBE_KEY:
     raise Exception("The YOUTUBE_KEY environment variable is not set.")
+
+if not YOUTUBE_URL:
+    raise Exception("The YOUTUBE_URL environment variable is not set.")
 
    # Paths for media files
 AUDIO_PATH = "/app/audio"

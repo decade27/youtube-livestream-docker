@@ -29,7 +29,7 @@ This project allows you to stream to YouTube using FFmpeg inside a Docker contai
 
 3. **Configure Your YouTube Stream Key**
 
-   - Update the `YOUTUBE_KEY` in the `docker-compose.yml` file. Replace `YOUR_YOUTUBE_STREAM_KEY` with your actual YouTube Live streaming key.
+   - Update the `YOUTUBE_KEY` and `YOUTUBE_URL` in the `docker-compose.yml` file. Replace `YOUR_YOUTUBE_STREAM_KEY` and `YOUR_YOUTUBE_URL` with your actual YouTube Live streaming key and YouTube Stream URL, respectively.
 
 4. **Build and Run the Docker Container**
 

@@ -8,5 +8,6 @@ services:
          - ./video:/app/video
        environment:
          - YOUTUBE_KEY=YOUR_YOUTUBE_STREAM_KEY  # Set your stream key as an environment variable
+         - YOUTUBE_URL=YOUR_YOUTUBE_URL # Set your YouTube stream URL variable
        command: python /app/stream.py
        restart: unless-stopped
