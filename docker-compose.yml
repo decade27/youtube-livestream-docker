@@ -2,6 +2,7 @@ version: '3.8'
 services:
      youtube-stream:
        build: .
+       image: decade27/youtube-livestream-docker:latest
        container_name: youtube_stream
        volumes:
          - ./audio:/app/audio
