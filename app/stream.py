@@ -40,19 +40,23 @@ video_file = os.path.join(VIDEO_PATH, video_files[0])
 
    # FFmpeg command to stream
 command = [
-       "ffmpeg",
-       "-re",
-       "-stream_loop", "-1",  # Loop the video indefinitely
-       "-i", video_file,
-       "-f", "concat",
-       "-safe", "0",
-       "-i", playlist_file_path,
-       "-c:v", "copy",
-       "-c:a", "aac",
-       "-strict", "experimental",
-       "-f", "flv",
-       f"{YOUTUBE_URL}/{YOUTUBE_KEY}"
-   ]
+    "ffmpeg",
+    "-re",
+    "-stream_loop", "-1",          # Loop the video indefinitely
+    "-i", video_file,
+    "-f", "concat",
+    "-safe", "0",
+    "-stream_loop", "-1",          # Loop the audio playlist indefinitely
+    "-i", playlist_file_path,
+    "-c:v", "libx264",             # Encode video using H.264
+    "-b:v", "8000k",               # Set video bitrate to 2500 kbps
+    "-x264-params", "keyint=50",   # Set keyframe interval to 50 (useful for smooth streaming)
+    "-c:a", "aac",                 # Encode audio using AAC
+    "-b:a", "128k",                # Set audio bitrate to 128 kbps
+    "-strict", "experimental",
+    "-f", "flv",
+    f"{YOUTUBE_URL}/{YOUTUBE_KEY}"
+]
 
    # Execute the command
 try:
