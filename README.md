@@ -1,60 +1,49 @@
 # YouTube Live Streaming with FFmpeg in Docker
 
-This project allows you to stream to YouTube using FFmpeg inside a Docker container. It plays a shuffled playlist of MP3 audio files over a continuously looping MP4 video file.
+This project streams a looping video together with a shuffled audio playlist to YouTube Live from a Docker container.
 
-## Features
+## What was fixed
 
-- Stream audio and video content to YouTube Live seamlessly.
-- Loop a single video continuously, while playing shuffled audio files.
-- Use Docker to encapsulate the environment, ensuring consistency across systems.
+- Rebuilt the broken `stream.py` file so it is valid Python again.
+- Fixed the malformed `Dockerfile` and `docker-compose.yml` formatting.
+- Added safer defaults for YouTube RTMP output.
+- Added better validation for missing media files and missing environment variables.
+- Added support for more common audio and video file extensions.
+- Added `.env.example` for easier configuration.
 
-## Prerequisites
+## Folder layout
 
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) should be installed on your system.
+```text
+.
+├── app/
+│   ├── requirements.txt
+│   └── stream.py
+├── audio/
+├── video/
+├── .env.example
+├── Dockerfile
+└── docker-compose.yml
+```
 
-## Setup Instructions
+## Setup
 
-1. **Clone the Repository**
+1. Copy `.env.example` to `.env`.
+2. Put your audio files in `audio/`.
+3. Put one video file in `video/`.
+4. Build and start the container:
 
-   Open your terminal and run:
-   ```bash
-   git clone https://github.com/decade27/youtube-livestream-docker.git
-   cd youtube-stream
-   ```
+```bash
+docker compose up --build
+```
 
-2. **Prepare Your Media Files**
+## Notes
 
-   - Add your MP3 audio files to the `audio/` directory.
-   - Add a single MP4 video file to the `video/` directory. Ensure the video file is named correctly as the script will use the first MP4 it finds for looping.
+- The first supported video file found in `video/` is used for the livestream.
+- Audio files are shuffled each time the container starts.
+- Default RTMP target is YouTube Live: `rtmp://a.rtmp.youtube.com/live2`.
 
-3. **Configure Your YouTube Stream Key**
+## Stop
 
-   - Update the `YOUTUBE_KEY` and `YOUTUBE_URL` in the `docker-compose.yml` file. Replace `YOUR_YOUTUBE_STREAM_KEY` and `YOUR_YOUTUBE_URL` with your actual YouTube Live streaming key and YouTube Stream URL, respectively.
-
-4. **Build and Run the Docker Container**
-
-   Use Docker Compose to build the image and start the service:
-   ```bash
-   docker-compose up --build
-   ```
-
-## Usage
-
-- Once the container is running, it will continuously stream the video file in a loop and play the MP3 files in shuffled order. The audio and video streams will be sent to YouTube Live.
-- To stop the stream, you can interrupt the process (usually with `Ctrl+C` in your terminal) or shut it down gracefully:
-  ```bash
-  docker-compose down
-  ```
-
-## Troubleshooting
-
-- If you encounter errors, ensure all paths are correct and both audio and video files are properly placed in their respective directories.
-- Check that your YouTube stream key is correctly set as an environment variable or modified in the `docker-compose.yml`.
-
-## Contributing
-
-Contributions are welcome! Please submit a pull request or open an issue if you have ideas for improvements or find bugs.
-
-## License
-
-This project is open-source and available under the MIT License.
+```bash
+docker compose down
+```

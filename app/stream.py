@@ -1,64 +1,127 @@
-import subprocess
 import os
 import random
+import subprocess
+import sys
+from pathlib import Path
 
-   # YouTube variables
-YOUTUBE_URL = os.getenv('YOUTUBE_URL')
-YOUTUBE_KEY = os.getenv('YOUTUBE_KEY')  # Expect the key to be provided as an environment variable
+AUDIO_PATH = Path("/app/audio")
+VIDEO_PATH = Path("/app/video")
+DEFAULT_YOUTUBE_URL = "rtmp://a.rtmp.youtube.com/live2"
+SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
+SUPPORTED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm"}
 
-if not YOUTUBE_KEY:
-    raise Exception("The YOUTUBE_KEY environment variable is not set.")
 
-if not YOUTUBE_URL:
-    raise Exception("The YOUTUBE_URL environment variable is not set.")
+def require_env(name: str, default: str | None = None) -> str:
+    value = os.getenv(name, default)
+    if value is None or not value.strip():
+        raise RuntimeError(f"The {name} environment variable is not set.")
+    return value.strip()
 
-   # Paths for media files
-AUDIO_PATH = "/app/audio"
-VIDEO_PATH = "/app/video"
 
-   # Discover available files
-audio_files = [f for f in os.listdir(AUDIO_PATH) if f.endswith(".mp3")]
-video_files = [f for f in os.listdir(VIDEO_PATH) if f.endswith(".mp4")]
+def find_media_files(directory: Path, extensions: set[str]) -> list[Path]:
+    if not directory.exists():
+        raise RuntimeError(f"Directory does not exist: {directory}")
 
-if not audio_files:
-    raise Exception("No audio files found!")
+    files = [
+        path for path in directory.iterdir()
+        if path.is_file() and path.suffix.lower() in extensions
+    ]
+    return sorted(files)
 
-if not video_files:
-    raise Exception("No video file found!")
 
-   # Randomly shuffle the audio files
-random.shuffle(audio_files)
+def build_playlist_file(audio_files: list[Path], playlist_file: Path) -> None:
+    random.shuffle(audio_files)
+    with playlist_file.open("w", encoding="utf-8") as handle:
+        for audio_file in audio_files:
+            escaped = str(audio_file).replace("'", r"'\\''")
+            handle.write(f"file '{escaped}'\n")
 
-   # Create a playlist for the shuffled MP3s
-playlist_file_path = os.path.join(AUDIO_PATH, "playlist.txt")
-with open(playlist_file_path, 'w') as playlist_file:
-    for audio_file in audio_files:
-        playlist_file.write(f"file '{os.path.join(AUDIO_PATH, audio_file)}'\n")
 
-   # Use the first (and only) video in the directory
-video_file = os.path.join(VIDEO_PATH, video_files[0])
+def build_ffmpeg_command(video_file: Path, playlist_file: Path, output_url: str) -> list[str]:
+    return [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        os.getenv("FFMPEG_LOGLEVEL", "info"),
+        "-re",
+        "-stream_loop",
+        "-1",
+        "-i",
+        str(video_file),
+        "-stream_loop",
+        "-1",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        str(playlist_file),
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a:0",
+        "-c:v",
+        "libx264",
+        "-preset",
+        os.getenv("FFMPEG_PRESET", "veryfast"),
+        "-maxrate",
+        os.getenv("VIDEO_MAXRATE", "6000k"),
+        "-bufsize",
+        os.getenv("VIDEO_BUFSIZE", "12000k"),
+        "-pix_fmt",
+        "yuv420p",
+        "-g",
+        os.getenv("VIDEO_GOP", "60"),
+        "-c:a",
+        "aac",
+        "-b:a",
+        os.getenv("AUDIO_BITRATE", "192k"),
+        "-ar",
+        os.getenv("AUDIO_SAMPLE_RATE", "44100"),
+        "-ac",
+        os.getenv("AUDIO_CHANNELS", "2"),
+        "-f",
+        "flv",
+        output_url,
+    ]
 
-   # FFmpeg command to stream
-command = [
-    "ffmpeg",
-    "-re",
-    "-stream_loop", "-1",          # Loop the video indefinitely
-    "-i", video_file,
-    "-f", "concat",
-    "-safe", "0",
-    "-stream_loop", "-1",          # Loop the audio playlist indefinitely
-    "-i", playlist_file_path,
-    "-c:v", "libx264",             # Encode video using H.264
-    "-b:v", "8000k",               # Set video bitrate to 8000 kbps for 1080p videos.
-    "-x264-params", "keyint=50",   # Set keyframe interval to 50 (useful for smooth streaming)
-    "-c:a", "aac",                 # Encode audio using AAC
-    "-b:a", "128k",                # Set audio bitrate to 128 kbps
-    "-f", "flv",
-    f"{YOUTUBE_URL}/{YOUTUBE_KEY}"
-]
 
-   # Execute the command
-try:
-    subprocess.run(command, check=True)
-except subprocess.CalledProcessError as e:
-    print(f"Error occurred: {e}")
+def main() -> int:
+    youtube_key = require_env("YOUTUBE_KEY")
+    youtube_url = require_env("YOUTUBE_URL", DEFAULT_YOUTUBE_URL)
+    output_url = f"{youtube_url.rstrip('/')}/{youtube_key}"
+
+    audio_files = find_media_files(AUDIO_PATH, SUPPORTED_AUDIO_EXTENSIONS)
+    video_files = find_media_files(VIDEO_PATH, SUPPORTED_VIDEO_EXTENSIONS)
+
+    if not audio_files:
+        raise RuntimeError(
+            f"No supported audio files found in {AUDIO_PATH}. "
+            f"Expected one of: {', '.join(sorted(SUPPORTED_AUDIO_EXTENSIONS))}"
+        )
+    if not video_files:
+        raise RuntimeError(
+            f"No supported video files found in {VIDEO_PATH}. "
+            f"Expected one of: {', '.join(sorted(SUPPORTED_VIDEO_EXTENSIONS))}"
+        )
+
+    video_file = video_files[0]
+    playlist_file = AUDIO_PATH / "playlist.txt"
+    build_playlist_file(audio_files, playlist_file)
+
+    command = build_ffmpeg_command(video_file, playlist_file, output_url)
+    print("Starting stream with video:", video_file)
+    print("Audio tracks in playlist:", len(audio_files))
+    print("Streaming to:", youtube_url)
+
+    try:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as exc:
+        print(f"FFmpeg exited with status {exc.returncode}", file=sys.stderr)
+        return exc.returncode or 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
